@@ -140,14 +140,14 @@ void checkSystemState() {
   digitalWrite(SWITCH2_LED, switch2);
 
   if (!switch1 && !switch2) {
-    systemEnabled = false;
-    soundEnabled = false;
+    systemEnabled = true;
+    soundEnabled = true;
   } else if (switch1 && switch2) {
     systemEnabled = true;
     soundEnabled = true;
   } else {
     systemEnabled = true;
-    soundEnabled = false;
+    soundEnabled = true;
   }
 }
 
