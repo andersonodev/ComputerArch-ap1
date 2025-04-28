@@ -2,14 +2,18 @@
 // codigo novo: 
 
 /*
- * Sistema de Detecção de Alvo com Controle por Jumpers
+ * Sistema de Detecção de Alvo
+ * 
+ * Autores:
+ * Enrique Mari Clavecilla Labre, 202408380501
+ * [Nome e matrícula]
+ * [Nome e matrícula]
+ * [Nome e matrícula]
  */
 
-// Pinos do sensor ultrassônico
+// Pinos do sensor e buzzer
 const int TRIG_PIN = 9;
 const int ECHO_PIN = 10;
-
-// Pino do buzzer
 const int BUZZER_PIN = 8;
 
 // Pinos dos LEDs de distância
@@ -20,22 +24,25 @@ const int NUM_LEDS = 5;
 const int JUMPER1_PIN = 11;
 const int JUMPER2_PIN = 12;
 
-// Pinos dos LEDs indicadores de jumper
+// LEDs indicadores de jumper
 const int JUMPER1_LED = 7;
 const int JUMPER2_LED = 13;
 
-// Limiares de distância em centímetros
+// Limiares em cm
+const int DISTANCE_5M = 500;
 const int DISTANCE_4M = 400;
 const int DISTANCE_2M = 200;
 const int DISTANCE_1M = 100;
 
-// Temporizações
+// Temporizações (em ms)
 const unsigned long BLINK_SLOW = 1000;
 const unsigned long BLINK_FAST = 500;
 
-// Variáveis de estado
+// Estado do sistema
 bool systemEnabled = false;
 bool soundEnabled = true;
+
+// Controle de tempo
 unsigned long lastLEDToggle = 0;
 unsigned long lastBuzzerToggle = 0;
 int currentLED = 0;
@@ -68,7 +75,7 @@ float getDistance() {
   digitalWrite(TRIG_PIN, LOW);
 
   float duration = pulseIn(ECHO_PIN, HIGH);
-  float distance = duration * 0.034 / 2; // Convertendo para cm
+  float distance = duration * 0.034 / 2; // em cm
   return distance;
 }
 
@@ -76,7 +83,7 @@ void handleLEDs(float distance) {
   unsigned long interval = (distance > DISTANCE_2M) ? BLINK_SLOW : BLINK_FAST;
   int activeLEDs = (distance > DISTANCE_2M) ? 3 : 4;
 
-  // Apaga todos os LEDs
+  // Todos os LEDs desligados por padrão
   for (int i = 0; i < NUM_LEDS; i++) {
     digitalWrite(LED_PINS[i], LOW);
   }
@@ -84,7 +91,7 @@ void handleLEDs(float distance) {
   if (distance > DISTANCE_4M) return;
 
   if (distance > DISTANCE_1M) {
-    // Pisca LEDs alternadamente
+    // Piscar LEDs alternadamente
     if (millis() - lastLEDToggle >= interval) {
       lastLEDToggle = millis();
       for (int i = 0; i < activeLEDs; i++) {
@@ -94,7 +101,7 @@ void handleLEDs(float distance) {
       currentLED = (currentLED + 1) % activeLEDs;
     }
   } else {
-    // Abaixo de 1 metro: todos os LEDs ligados
+    // Abaixo de 1m: todos acesos
     for (int i = 0; i < NUM_LEDS; i++) {
       digitalWrite(LED_PINS[i], HIGH);
     }
@@ -108,6 +115,7 @@ void handleBuzzer(float distance) {
   }
 
   if (distance > DISTANCE_2M) {
+    // Som intermitente lento (2m - 4m)
     if (millis() - lastBuzzerToggle >= BLINK_SLOW) {
       lastBuzzerToggle = millis();
       buzzerState = !buzzerState;
@@ -115,6 +123,7 @@ void handleBuzzer(float distance) {
       else noTone(BUZZER_PIN);
     }
   } else if (distance > DISTANCE_1M) {
+    // Som intermitente rápido (1m - 2m)
     if (millis() - lastBuzzerToggle >= BLINK_FAST) {
       lastBuzzerToggle = millis();
       buzzerState = !buzzerState;
@@ -122,28 +131,39 @@ void handleBuzzer(float distance) {
       else noTone(BUZZER_PIN);
     }
   } else {
+    // Som contínuo (< 1m)
     tone(BUZZER_PIN, 1000);
   }
 }
 
 void checkSystemState() {
-  bool jumper1 = !digitalRead(JUMPER1_PIN); // jumper ligado = LOW
-  bool jumper2 = !digitalRead(JUMPER2_PIN);
+  // Lê os jumpers
+  bool jumper1 = digitalRead(JUMPER1_PIN); // jumper ativo
+  bool jumper2 = digitalRead(JUMPER2_PIN);
 
   digitalWrite(JUMPER1_LED, jumper1);
   digitalWrite(JUMPER2_LED, jumper2);
 
+  // Nova lógica correta:
   if (jumper1 && jumper2) {
+    // (+,+) -> Sistema ligado, LED e Buzzer ativos
     systemEnabled = true;
     soundEnabled = true;
   } else if (jumper1 && !jumper2) {
+    // (+,-) -> Sistema ligado, só LED
     systemEnabled = true;
     soundEnabled = false;
   } else if (!jumper1 && !jumper2) {
+    // (-,-) -> Sistema desligado
     systemEnabled = false;
+    soundEnabled = false;
+  } else if (!jumper1 && jumper2) {
+    // (-,+) -> Estado inválido, sistema desligado por segurança
+    systemEnabled = true;
     soundEnabled = false;
   }
 }
+
 
 void loop() {
   checkSystemState();
@@ -158,7 +178,7 @@ void loop() {
     handleLEDs(distance);
     handleBuzzer(distance);
   } else {
-    // Se desligado, apaga LEDs e buzzer
+    // Sistema desligado
     for (int i = 0; i < NUM_LEDS; i++) {
       digitalWrite(LED_PINS[i], LOW);
     }
@@ -168,7 +188,6 @@ void loop() {
 
   delay(100);
 }
-
 
 
 
